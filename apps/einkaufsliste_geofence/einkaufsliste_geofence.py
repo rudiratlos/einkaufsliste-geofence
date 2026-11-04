@@ -1,20 +1,17 @@
-"""AppDaemon-App: Automatische Geofences für Einkaufslisten-Filialen.
+"""Einkaufsliste Geofence – dynamische Filial-Sensoren.
 
-Erkennt sensor.einkaufsliste_* und erstellt dynamische Binary-Sensoren:
+Erkennt automatisch Einkaufslisten-Sensoren und erstellt pro Filiale
+einen Sensor mit GPS-Koordinaten und Geofence-Attributen.
 
-binary_sensor.einkaufsliste_bei_<geschaeft>_<plz>
+Beispiel:
+    sensor.coop_1234
 
-- Adresse aus den Sensorattributen
-- Geocoding über OpenStreetMap Nominatim
-- Lokaler Geocoding-Cache
-- Standortbestimmung über device_tracker.*
-- Standardradius 35 Meter
-- Individueller Radius pro Filiale
-- Keine Home-Assistant-Zonen erforderlich
+Keine Binary-Sensoren.
+Keine Tracker-Überwachung.
+Keine Änderungen an bestehenden Home-Assistant-Zonen.
 """
 
 import json
-import math
 import os
 import re
 import time
@@ -29,15 +26,18 @@ class EinkaufslisteGeofence(hass.Hass):
 
     def initialize(self):
 
-        self.radius = float(self.args.get("radius", 35))
-        self.update_interval = int(self.args.get("update_interval", 30))
-
         self.sensor_prefix = self.args.get(
             "sensor_prefix", "sensor.einkaufsliste_"
         )
 
-        self.entity_prefix = self.args.get(
-            "entity_prefix", "binary_sensor.einkaufsliste_bei_"
+        self.output_prefix = self.args.get(
+            "output_prefix", "sensor."
+        )
+
+        self.radius = float(self.args.get("radius", 35))
+
+        self.update_interval = int(
+            self.args.get("update_interval", 60)
         )
 
         self.cache_file = self.args.get(
@@ -45,10 +45,6 @@ class EinkaufslisteGeofence(hass.Hass):
             "/config/appdaemon/apps/einkaufsliste_geofence/geocode_cache.json"
         )
 
-        # Optional: nur bestimmte Smartphones überwachen.
-        self.trackers_config = self.args.get("trackers", [])
-
-        self.stores = {}
         self.geocode_cache = {}
         self.last_geocode = 0
 
@@ -64,53 +60,6 @@ class EinkaufslisteGeofence(hass.Hass):
             self.datetime(),
             self.update_interval
         )
-
-    # ---------------------------------------------------------
-    # Cache
-    # ---------------------------------------------------------
-
-    def _load_cache(self):
-
-        try:
-            if os.path.exists(self.cache_file):
-
-                with open(self.cache_file, "r", encoding="utf-8") as file:
-                    self.geocode_cache = json.load(file)
-
-        except Exception as exc:
-
-            self.log(
-                f"Geocoding-Cache konnte nicht geladen werden: {exc}",
-                level="WARNING"
-            )
-
-    def _save_cache(self):
-
-        try:
-            directory = os.path.dirname(self.cache_file)
-
-            if directory:
-                os.makedirs(directory, exist_ok=True)
-
-            temporary = self.cache_file + ".tmp"
-
-            with open(temporary, "w", encoding="utf-8") as file:
-
-                json.dump(
-                    self.geocode_cache,
-                    file,
-                    ensure_ascii=False,
-                    indent=2
-                )
-
-            os.replace(temporary, self.cache_file)
-
-        except Exception as exc:
-
-            self.log(
-                f"Cache konnte nicht gespeichert werden: {exc}",
-                level="WARNING"
-            )
 
     # ---------------------------------------------------------
     # Hilfsfunktionen
@@ -133,32 +82,62 @@ class EinkaufslisteGeofence(hass.Hass):
 
         return value.strip("_")
 
-    @staticmethod
-    def distance_m(lat1, lon1, lat2, lon2):
+    # ---------------------------------------------------------
+    # Cache
+    # ---------------------------------------------------------
 
-        """Berechnet die Entfernung zwischen zwei GPS-Koordinaten."""
+    def _load_cache(self):
 
-        earth_radius = 6371000
+        try:
 
-        lat1 = math.radians(float(lat1))
-        lon1 = math.radians(float(lon1))
-        lat2 = math.radians(float(lat2))
-        lon2 = math.radians(float(lon2))
+            if os.path.exists(self.cache_file):
 
-        dlat = lat2 - lat1
-        dlon = lon2 - lon1
+                with open(
+                    self.cache_file,
+                    "r",
+                    encoding="utf-8"
+                ) as file:
 
-        a = (
-            math.sin(dlat / 2) ** 2
-            + math.cos(lat1)
-            * math.cos(lat2)
-            * math.sin(dlon / 2) ** 2
-        )
+                    self.geocode_cache = json.load(file)
 
-        return earth_radius * 2 * math.atan2(
-            math.sqrt(a),
-            math.sqrt(1 - a)
-        )
+        except Exception as exc:
+
+            self.log(
+                f"Geocoding-Cache konnte nicht geladen werden: {exc}",
+                level="WARNING"
+            )
+
+    def _save_cache(self):
+
+        try:
+
+            directory = os.path.dirname(self.cache_file)
+
+            os.makedirs(directory, exist_ok=True)
+
+            temporary = self.cache_file + ".tmp"
+
+            with open(
+                temporary,
+                "w",
+                encoding="utf-8"
+            ) as file:
+
+                json.dump(
+                    self.geocode_cache,
+                    file,
+                    ensure_ascii=False,
+                    indent=2
+                )
+
+            os.replace(temporary, self.cache_file)
+
+        except Exception as exc:
+
+            self.log(
+                f"Cache konnte nicht gespeichert werden: {exc}",
+                level="WARNING"
+            )
 
     # ---------------------------------------------------------
     # Geocoding
@@ -166,17 +145,17 @@ class EinkaufslisteGeofence(hass.Hass):
 
     def geocode(self, address, plz="", ort="", land="CH"):
 
-        """Ermittelt GPS-Koordinaten über OpenStreetMap Nominatim."""
-
-        full_address = f"{str(address).strip()}, {str(land).strip()}"
+        full_address = ", ".join(
+            str(part).strip()
+            for part in (address, land)
+            if part
+        )
 
         cache_key = full_address.lower()
 
-        # Bereits gespeicherte Koordinaten verwenden.
         if cache_key in self.geocode_cache:
             return self.geocode_cache[cache_key]
 
-        # Nominatim: maximal eine Anfrage pro Sekunde.
         wait = 1.1 - (time.time() - self.last_geocode)
 
         if wait > 0:
@@ -188,7 +167,6 @@ class EinkaufslisteGeofence(hass.Hass):
             "limit": 1
         }
 
-        # Länderkennung als zusätzliche Suchbegrenzung.
         if land:
             params["countrycodes"] = str(land).lower()
 
@@ -200,7 +178,7 @@ class EinkaufslisteGeofence(hass.Hass):
         request = urllib.request.Request(
             url,
             headers={
-                "User-Agent": "SwissGroceriesGeofence/1.0"
+                "User-Agent": "EinkaufslisteGeofence/2.0"
             }
         )
 
@@ -208,7 +186,10 @@ class EinkaufslisteGeofence(hass.Hass):
 
             self.last_geocode = time.time()
 
-            with urllib.request.urlopen(request, timeout=15) as response:
+            with urllib.request.urlopen(
+                request,
+                timeout=15
+            ) as response:
 
                 result = json.loads(
                     response.read().decode("utf-8")
@@ -228,7 +209,6 @@ class EinkaufslisteGeofence(hass.Hass):
                 "longitude": float(result[0]["lon"])
             }
 
-            # Koordinaten lokal zwischenspeichern.
             self.geocode_cache[cache_key] = coordinates
 
             self._save_cache()
@@ -258,6 +238,8 @@ class EinkaufslisteGeofence(hass.Hass):
 
         states = self.get_state() or {}
 
+        stores = {}
+
         for entity_id, entity in states.items():
 
             if not entity_id.startswith(self.sensor_prefix):
@@ -286,199 +268,112 @@ class EinkaufslisteGeofence(hass.Hass):
             if not slug or not zip_slug:
                 continue
 
-            binary_entity = (
-                f"{self.entity_prefix}{slug}_{zip_slug}"
-            )
+            sensor_id = f"{slug}_{zip_slug}"
 
-            address_key = f"{address}|{plz}|{ort}|{land}"
-
-            existing = self.stores.get(binary_entity)
-
-            if (
-                existing
-                and existing.get("address_key") == address_key
-            ):
-                continue
-
-            self.log(
-                f"Filiale erkannt: {store_name} ({plz} {ort})"
-            )
-
-            coordinates = self.geocode(
-                address,
-                plz,
-                ort,
-                land
-            )
-
-            if coordinates is None:
-                continue
-
-            self.stores[binary_entity] = {
-
-                "entity_id": entity_id,
-                "name": store_name,
-                "address": address,
-                "plz": str(plz),
-                "ort": ort,
-                "land": land,
-                "address_key": address_key,
-
-                "latitude": coordinates["latitude"],
-                "longitude": coordinates["longitude"]
+            stores[sensor_id] = {
+                "name": str(store_name).strip(),
+                "address": str(address).strip(),
+                "plz": str(plz).strip(),
+                "ort": str(ort or "").strip(),
+                "land": str(land or "CH").strip(),
+                "source_sensor": entity_id
             }
 
-            self.log(
-                f"Geofence erstellt: {binary_entity}"
+        return stores
+
+    # ---------------------------------------------------------
+    # Filial-Sensoren erstellen / aktualisieren
+    # ---------------------------------------------------------
+
+    def create_store_sensor(self, sensor_id, store):
+
+        coordinates = self.geocode(
+            store["address"],
+            store["plz"],
+            store["ort"],
+            store["land"]
+        )
+
+        if coordinates is None:
+            return False
+
+        entity_id = f"sensor.{sensor_id}"
+
+        attributes = {
+            "friendly_name": f"{store['name']} {store['plz']}",
+            "icon": "mdi:cart-outline",
+            "latitude": coordinates["latitude"],
+            "longitude": coordinates["longitude"],
+            "radius": float(
+                self.args.get(
+                    f"radius_{sensor_id}",
+                    self.radius
+                )
+            ),
+            "passive": False,
+            "geschaeft": store["name"],
+            "adresse": store["address"],
+            "plz": store["plz"],
+            "ort": store["ort"],
+            "land": store["land"],
+            "source_sensor": store["source_sensor"]
+        }
+
+        try:
+
+            self.set_state(
+                entity_id,
+                state="ready",
+                attributes=attributes
             )
 
-    # ---------------------------------------------------------
-    # Companion-Geräte erkennen
-    # ---------------------------------------------------------
+            self.log(
+                f"Filial-Sensor aktualisiert: {entity_id} "
+                f"({coordinates['latitude']}, "
+                f"{coordinates['longitude']})"
+            )
 
-    def get_trackers(self):
+            return True
 
-        states = self.get_state() or {}
+        except Exception as exc:
 
-        trackers = []
+            self.log(
+                f"Fehler beim Erstellen von {entity_id}: {exc}",
+                level="ERROR"
+            )
 
-        for entity_id, entity in states.items():
-
-            if not entity_id.startswith("device_tracker."):
-                continue
-
-            if (
-                self.trackers_config
-                and entity_id not in self.trackers_config
-            ):
-                continue
-
-            if not isinstance(entity, dict):
-                continue
-
-            attributes = entity.get("attributes", {})
-
-            if not isinstance(attributes, dict):
-                continue
-
-            latitude = attributes.get("latitude")
-            longitude = attributes.get("longitude")
-
-            if latitude is None or longitude is None:
-                continue
-
-            try:
-
-                latitude = float(latitude)
-                longitude = float(longitude)
-
-                if not (-90 <= latitude <= 90):
-                    continue
-
-                if not (-180 <= longitude <= 180):
-                    continue
-
-                accuracy = float(
-                    attributes.get("gps_accuracy", 0) or 0
-                )
-
-                trackers.append({
-
-                    "entity_id": entity_id,
-                    "latitude": latitude,
-                    "longitude": longitude,
-                    "accuracy": accuracy
-
-                })
-
-            except (ValueError, TypeError):
-                continue
-
-        return trackers
+            return False
 
     # ---------------------------------------------------------
-    # Geofence berechnen und Sensoren aktualisieren
+    # Aktualisierung
     # ---------------------------------------------------------
 
     def update(self, kwargs):
 
         try:
 
-            self.discover_stores()
+            stores = self.discover_stores()
 
-            trackers = self.get_trackers()
+            self.log(
+                f"{len(stores)} Filiale(n) erkannt."
+            )
 
-            for entity_id, store in self.stores.items():
+            for sensor_id, store in sorted(stores.items()):
 
-                # Individueller Radius pro Filiale möglich.
-                radius_key = (
-                    "radius_" + entity_id.split(".")[-1]
+                self.log(
+                    f"Filiale erkannt: {store['name']} "
+                    f"({store['plz']} {store['ort']})"
                 )
 
-                radius = float(
-                    self.args.get(radius_key, self.radius)
-                )
-
-                distances = []
-
-                for tracker in trackers:
-
-                    distance = self.distance_m(
-                        store["latitude"],
-                        store["longitude"],
-                        tracker["latitude"],
-                        tracker["longitude"]
-                    )
-
-                    distances.append({
-
-                        "device": tracker["entity_id"],
-                        "distance": round(distance, 1),
-                        "gps_accuracy": tracker["accuracy"]
-
-                    })
-
-                # ON, sobald mindestens ein Gerät sicher
-                # innerhalb des Radius ist.
-
-                inside = any(
-                    item["distance"] + item["gps_accuracy"] <= radius
-                    for item in distances
-                )
-
-                self.set_state(
-                    entity_id,
-                    state="on" if inside else "off",
-                    attributes={
-
-                        "friendly_name": (
-                            f"Einkaufsliste bei {store['name']} "
-                            f"({store['plz']})"
-                        ),
-
-                        "device_class": "presence",
-
-                        "geschaeft": store["name"],
-                        "adresse": store["address"],
-                        "plz": store["plz"],
-                        "ort": store["ort"],
-                        "land": store["land"],
-
-                        "latitude": store["latitude"],
-                        "longitude": store["longitude"],
-
-                        "radius": radius,
-                        "distances": distances,
-
-                        "source_sensor": store["entity_id"]
-
-                    }
+                self.create_store_sensor(
+                    sensor_id,
+                    store
                 )
 
         except Exception as exc:
 
             self.log(
-                f"Fehler bei Geofence-Aktualisierung: {exc}",
+                f"Fehler bei der Filial-Aktualisierung: {exc}",
                 level="ERROR"
             )
 

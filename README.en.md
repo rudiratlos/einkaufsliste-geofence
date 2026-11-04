@@ -1,90 +1,181 @@
-# Einkaufsliste Geofence for Home Assistant
+# Shopping List Geofence
 
-[🇩🇪 Deutsch](README.md) · 🇬🇧 English
+[🇩🇪 Deutsch](README.md) · [🇬🇧 English](README.en.md)
 
-Automatically detects when you are near a store listed in your Home Assistant shopping list. The app creates dynamic binary sensors based on store addresses and smartphone locations.
+This AppDaemon app automatically creates dynamic sensors for stores configured in your Home Assistant shopping list.
 
-## Installation
+The app discovers stores using shopping list sensor attributes, geocodes their addresses via OpenStreetMap Nominatim and exposes their GPS coordinates as dynamic Home Assistant sensors.
 
-Nothing has to be copied by hand. Add the repository through HACS and configure the app:
+Examples:
+- `sensor.denner_1234`
+- `sensor.coop_6900`
+- `sensor.migros_6900`
 
-1. App via HACS: Make sure the AppDaemon apps category is enabled in HACS (Settings → Devices & services → HACS → Configure). Then click Open in HACS and choose Download. Without the button: HACS → ⋮ → Custom repositories → `https://github.com/rudiratlos/einkaufsliste-geofence`, category AppDaemon.
-2. AppDaemon: HACS installs the app in the AppDaemon directory.
-3. Extend AppDaemon's `apps.yaml` and restart AppDaemon:
+These sensors provide geographic reference points for automatic store matching by other integrations or the Shopping List Card.
 
-## Geofencing-Configuration
+## Features
 
-The Geofencing-App config entry in `apps.yaml`:
+- Automatic store discovery from shopping list sensors
+- Automatic geocoding of store addresses
+- Dynamic sensor creation for each store and branch
+- GPS coordinates exposed as sensor attributes
+- Configurable geofence radius
+- Local geocoding cache
+- Automatic updates when store information changes
+- Support for multiple stores and branches
 
-    einkaufsliste_geofence:
-      module: einkaufsliste-geofence
-      class: EinkaufslisteGeofence
-      # Std. radius in Meter
-      radius: 35
-      update_interval: 30
-      # Optional: for specific smartphones only
-      # trackers:
-      #   - device_tracker.iphone
-      #   - device_tracker.android
-      # Optional: individuell radius per shop
-      # radius_<store>_<zip>: 50
+**Important:** This app does not create binary sensors or monitor smartphone trackers. It only provides geographic information about stores. Determining whether a user is within a geofence is handled by the consuming integration or the Shopping List Card.
 
+## Related projects
 
-The app detects stores using the attributes of the shopping list sensors. Store addresses are geocoded to determine their locations.
+- [Shopping List](https://github.com/misterm2310/einkaufslisten-card) – Home Assistant shopping list with store detection.
+- [SwissGroceries AppDaemon](https://github.com/rudiratlos/swissgroceries-appdaemon/blob/main/README.md) – AppDaemon integration for Swiss supermarket promotions.
 
-Requirements: Home Assistant OS or Supervised, AppDaemon add-on (4.5), HACS, shopping list sensors with store and address attributes, and smartphone trackers providing GPS coordinates.
+## Installation via HACS
 
-## Options (all optional)
+1. Open HACS.
+2. Navigate to **Integrations** or **Custom repositories**.
+3. Add this repository:
 
-Option | Default | Meaning
---- | --- | ---
-`radius` | `35` | Default geofence radius in meters
-`update_interval` | `30` | Update interval in seconds
-`trackers` | automatic | List of smartphone trackers to monitor
-`radius_<store>_<zip>` | `radius` | Individual radius per store in meters
+   `https://github.com/rudiratlos/einkaufsliste-geofence`
 
+4. Select **AppDaemon** as the category.
+5. Install the repository.
+6. Add the AppDaemon configuration.
+7. Restart AppDaemon.
 
-## Generated Binary Sensors
+**HACS category:** AppDaemon
 
-A separate binary sensor is created for each detected store.
+## Configuration
 
-Entity ID:
+Add the following to AppDaemon's `apps.yaml`:
 
-    binary_sensor.einkaufsliste_bei_<store>_<zip>
+```yaml
+einkaufsliste_geofence:
+  module: einkaufsliste_geofence
+  class: EinkaufslisteGeofence
+  radius: 35
+  update_interval: 60
+```
 
-States:
+### Configuration options
 
-- `on`: At least one monitored smartphone is within the geofence.
-- `off`: No monitored smartphone is within the geofence.
+| Option | Default | Description |
+|---|---:|---|
+| `radius` | `35` | Default geofence radius in meters |
+| `update_interval` | `60` | Update interval in seconds |
+| `sensor_prefix` | `sensor.einkaufsliste_` | Shopping list sensor prefix |
+| `radius_<store>_<zip>` | `radius` | Individual radius per store |
 
-The sensors include additional attributes containing store and location information as well as calculated distances.
+Example with individual radii:
+
+```yaml
+einkaufsliste_geofence:
+  module: einkaufsliste_geofence
+  class: EinkaufslisteGeofence
+  radius: 35
+  radius_denner_1234: 50
+  radius_coop_6900: 45
+  update_interval: 60
+```
+
+## Requirements
+
+- Home Assistant OS or Home Assistant Supervised
+- AppDaemon 4.5 or newer
+- HACS
+- Shopping list sensors with the required store attributes
+- Internet access for OpenStreetMap Nominatim geocoding
+
+Shopping list sensors must provide the following attributes:
+
+| Attribute | Example |
+|---|---|
+| `geschaeft` | Denner |
+| `adresse` | Address |
+| `plz` | 1234 |
+| `ort` | city |
+| `land` | countrycode |
+
+## Dynamically generated sensors
+
+A sensor is automatically created for every detected store.
+
+Example:
+
+`sensor.denner_1234`
+
+The sensor provides the following attributes:
+
+| Attribute | Example |
+|---|---|
+| `friendly_name` | Denner 1234 |
+| `latitude` | 45.0 |
+| `longitude` | 8.0 |
+| `radius` | 35 |
+| `passive` | false |
+| `icon` | mdi:cart-outline |
+| `geschaeft` | Denner |
+| `adresse` | address |
+| `plz` | 1234 |
+| `ort` | city |
+| `land` | countrycode |
+| `source_sensor` | sensor.einkaufsliste_denner |
+
+The sensor provides geographic information for the corresponding store branch.
+
+### Geofencing
+
+The app does not calculate distances or monitor people itself.
+
+It only provides the coordinates and radius of each store.
+
+The Shopping List Card or another integration can use this information to determine whether a smartphone is within the geofence.
+
+No person-specific or tracker-specific sensors are created.
+
+### Existing Home Assistant zones
+
+The app does not modify existing Home Assistant zones.
+
+No additional `zone:` configuration in `configuration.yaml` is required.
+
+## Geocoding and cache
+
+OpenStreetMap Nominatim is used to retrieve GPS coordinates.
+
+Successfully resolved coordinates are stored locally:
+
+`/config/appdaemon/apps/einkaufsliste_geofence/geocode_cache.json`
+
+Previously resolved addresses are loaded from the cache to avoid unnecessary requests.
+
+Nominatim requests are limited to a maximum of one request per second.
 
 ## Troubleshooting
 
-Observation | Fix
---- | ---
-App cannot be imported | Check the module path and directory structure
-No binary sensor available | Check AppDaemon logs for startup and store detection errors
-No GPS coordinates | Check the store address and geocoding
-Sensor remains `off` | Check the smartphone tracker and its GPS coordinates
-No stores detected | Check shopping list sensors and the attributes `geschaeft`, `adresse`, `plz`, `ort` and `land`
-
-Logs: `ha apps logs a0d7b954_appdaemon` (AppDaemon).
+| Problem | Solution |
+|---|---|
+| App cannot be imported | Check module path and directory structure |
+| No store sensor available | Check AppDaemon logs and store attributes |
+| No GPS coordinates | Check address and internet connection |
+| Incorrect GPS coordinates | Verify store address |
+| Individual radius not applied | Check `radius_<store>_<zip>` configuration |
+| No stores detected | Check `geschaeft`, `adresse` and `plz` attributes |
 
 ## Updates
 
 Updates are provided through GitHub Releases.
 
-AppDaemon app: Install updates through HACS.
+AppDaemon app updates can be installed through HACS.
 
 Restart AppDaemon after an update if necessary.
 
-Repository: https://github.com/rudiratlos/einkaufsliste-geofence
+- [GitHub Repository](https://github.com/rudiratlos/einkaufsliste-geofence)
+- [Releases](https://github.com/rudiratlos/einkaufsliste-geofence/releases)
 
-Release Notes: https://github.com/rudiratlos/einkaufsliste-geofence/releases
+## License
 
-## Legal
+This is an independent open-source project and is not affiliated with any of the mentioned supermarket chains.
 
-This app is an independent open-source project and is not affiliated with any of the mentioned supermarket chains.
-
-Own code: MIT License.
+MIT License.
