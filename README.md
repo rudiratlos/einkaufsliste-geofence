@@ -90,7 +90,7 @@ einkaufsliste_geofence:
 
 ## Dynamisch erzeugte Sensoren
 
-Für jedes erkannte Geschäft wird automatisch ein Sensor im Fromat sensor.einkaufsliste_zone_<geschaeft>_<plz> erstellt.
+Für jedes erkannte Geschäft wird automatisch ein Sensor im Fromat sensor.einkaufsliste_zone_[geschaeft]_[plz] erstellt.
 
 Beispiel:
 

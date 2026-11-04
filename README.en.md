@@ -99,7 +99,7 @@ Shopping list sensors must provide the following attributes:
 
 ## Dynamically generated sensors
 
-A sensor is automatically created with the format sensor.einkaufsliste_zone_<geschaeft>_<plz> for every detected store.
+For every detected store a sensor is automatically created in the format sensor.einkaufsliste_zone_[geschaeft]_[plz]
 
 Example:
 
