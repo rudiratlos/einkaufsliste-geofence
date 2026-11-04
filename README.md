@@ -10,19 +10,31 @@ Es muss nichts von Hand kopiert werden. Repository über HACS hinzufügen und di
 
 1. App über HACS: Voraussetzung ist, dass in HACS die Kategorie AppDaemon apps aktiviert ist (Einstellungen → Geräte & Dienste → HACS → Konfigurieren). Dann auf den Button HACS-Repository öffnen klicken und Herunterladen wählen. Ohne Button: HACS → ⋮ → Benutzerdefinierte Repositories → `https://github.com/rudiratlos/einkaufsliste-geofence`, Kategorie AppDaemon.
 2. AppDaemon: Die App wird von HACS im AppDaemon-Verzeichnis installiert.
-3. `apps.yaml` von AppDaemon ergänzen und AppDaemon neu starten:
+3. `apps.yaml` von AppDaemon ergänzen und AppDaemon neu starten
 
-   einkaufsliste_geofence:
-     module: einkaufsliste_geofence.einkaufsliste_geofence
-     class: EinkaufslisteGeofence
-     radius: 35
-     update_interval: 30
+## Geofencing-Konfiguration
+
+Die Geofencing-App wird über folgenden Eintrag in `apps.yaml` konfiguriert:
+
+    einkaufsliste_geofence:
+      module: einkaufsliste_geofence.einkaufsliste_geofence
+      class: EinkaufslisteGeofence
+      # Standardradius in Metern
+      radius: 35
+      # Aktualisierung alle 30 Sekunden
+      update_interval: 30
+      # Optional: nur bestimmte Smartphones
+      # trackers:
+      #   - device_tracker.iphone
+      #   - device_tracker.android
+      # Optional: individueller Radius pro Filiale
+      # radius_<geschaeft>_<plz>: 50
 
 Die App erkennt Geschäfte anhand der Attribute der Einkaufssensoren. Für die Standortbestimmung werden die Geschäftsadressen geocodiert.
 
 Voraussetzungen: Home Assistant OS oder Supervised, AppDaemon Add-on (4.5), HACS, Einkaufssensoren mit Geschäfts- und Adressattributen sowie Smartphone-Tracker mit GPS-Koordinaten.
 
-## Optionen (alle optional)
+**Konfigurationsoptionen:**
 
 Option | Standard | Bedeutung
 --- | --- | ---
@@ -31,13 +43,6 @@ Option | Standard | Bedeutung
 `trackers` | automatisch | Liste der zu überwachenden Smartphone-Tracker
 `radius_<geschaeft>_<plz>` | `radius` | Individueller Radius pro Filiale in Metern
 
-Beispiel für optionale Einstellungen:
-
-    trackers:
-      - device_tracker.iphone
-      - device_tracker.android
-
-    radius_<geschaeft>_<plz>: 50
 
 ## Erzeugte Binary-Sensoren
 

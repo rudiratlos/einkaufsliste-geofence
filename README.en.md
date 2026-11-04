@@ -12,11 +12,24 @@ Nothing has to be copied by hand. Add the repository through HACS and configure 
 2. AppDaemon: HACS installs the app in the AppDaemon directory.
 3. Extend AppDaemon's `apps.yaml` and restart AppDaemon:
 
-   einkaufsliste_geofence:
-     module: einkaufsliste_geofence.einkaufsliste_geofence
-     class: EinkaufslisteGeofence
-     radius: 35
-     update_interval: 30
+## Geofencing-Configuration
+
+The Geofencing-App config entry in `apps.yaml`:
+
+    einkaufsliste_geofence:
+      module: einkaufsliste_geofence.einkaufsliste_geofence
+      class: EinkaufslisteGeofence
+      # Std. radius in Meter
+      radius: 35
+      update_interval: 30
+      # Optional: for specific smartphones only
+      # trackers:
+      #   - device_tracker.iphone
+      #   - device_tracker.android
+      # Optional: individuell radius per shop
+      # radius_<store>_<zip>: 50
+
+**options:**
 
 The app detects stores using the attributes of the shopping list sensors. Store addresses are geocoded to determine their locations.
 
@@ -31,13 +44,6 @@ Option | Default | Meaning
 `trackers` | automatic | List of smartphone trackers to monitor
 `radius_<store>_<zip>` | `radius` | Individual radius per store in meters
 
-Example optional settings:
-
-    trackers:
-      - device_tracker.iphone
-      - device_tracker.android
-
-    radius_<store>_<zip>: 50
 
 ## Generated Binary Sensors
 
