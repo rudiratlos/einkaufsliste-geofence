@@ -65,7 +65,7 @@ einkaufsliste_geofence:
 | `radius` | `35` | Standardradius in Metern |
 | `update_interval` | `60` | Aktualisierungsintervall in Sekunden |
 | `sensor_prefix` | `sensor.einkaufsliste_zone_` | Präfix der Einkaufslisten-Sensoren |
-| `radius_<geschaeft>_<plz>` | `radius` | Individueller Radius pro Geschäft |
+| `radius_[geschaeft]_[plz]` | `radius` | Individueller Radius pro Geschäft |
 
 Beispiel mit individuellen Radien:
 
@@ -151,7 +151,7 @@ Nominatim-Anfragen werden auf maximal eine Anfrage pro Sekunde begrenzt.
 | Kein Geschäftssensor vorhanden | AppDaemon-Logs und Geschäftsattribute prüfen |
 | Keine GPS-Koordinaten | Adresse und Internetverbindung prüfen |
 | Falsche GPS-Koordinaten | Geschäftsadresse überprüfen |
-| Individueller Radius wird nicht übernommen | Konfiguration `radius_<geschaeft>_<plz>` prüfen |
+| Individueller Radius wird nicht übernommen | Konfiguration `radius_[geschaeft]_[plz]` prüfen |
 | Keine Geschäfte erkannt | Attribute `geschaeft`, `adresse` und `plz` prüfen |
 
 ## Updates

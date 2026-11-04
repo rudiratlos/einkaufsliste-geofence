@@ -65,7 +65,7 @@ einkaufsliste_geofence:
 | `radius` | `35` | Default geofence radius in meters |
 | `update_interval` | `60` | Update interval in seconds |
 | `sensor_prefix` | `sensor.einkaufsliste_zone_` | Shopping list sensor prefix |
-| `radius_<store>_<zip>` | `radius` | Individual radius per store |
+| `radius_[store]_[zip]` | `radius` | Individual radius per store |
 
 Example with individual radii:
 
@@ -99,7 +99,7 @@ Shopping list sensors must provide the following attributes:
 
 ## Dynamically generated sensors
 
-For every detected store a sensor is automatically created in the format sensor.einkaufsliste_zone_[geschaeft]_[plz]
+For every detected store a sensor is automatically created in the format sensor.einkaufsliste_zone_[store]_[plz]
 
 Example:
 
@@ -160,7 +160,7 @@ Nominatim requests are limited to a maximum of one request per second.
 | No store sensor available | Check AppDaemon logs and store attributes |
 | No GPS coordinates | Check address and internet connection |
 | Incorrect GPS coordinates | Verify store address |
-| Individual radius not applied | Check `radius_<store>_<zip>` configuration |
+| Individual radius not applied | Check `radius_[store]_[zip]` configuration |
 | No stores detected | Check `geschaeft`, `adresse` and `plz` attributes |
 
 ## Updates
