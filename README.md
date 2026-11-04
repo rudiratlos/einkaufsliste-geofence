@@ -17,7 +17,7 @@ Es muss nichts von Hand kopiert werden. Repository über HACS hinzufügen und di
 Die Geofencing-App wird über folgenden Eintrag in `apps.yaml` konfiguriert:
 
     einkaufsliste_geofence:
-      module: einkaufsliste_geofence
+      module: einkaufsliste-geofence
       class: EinkaufslisteGeofence
       # Standardradius in Metern
       radius: 35

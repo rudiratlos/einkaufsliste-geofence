@@ -17,7 +17,7 @@ Nothing has to be copied by hand. Add the repository through HACS and configure 
 The Geofencing-App config entry in `apps.yaml`:
 
     einkaufsliste_geofence:
-      module: einkaufsliste_geofence
+      module: einkaufsliste-geofence
       class: EinkaufslisteGeofence
       # Std. radius in Meter
       radius: 35

@@ -301,7 +301,7 @@ class EinkaufslisteGeofence(hass.Hass):
                 continue
 
             self.log(
-                f"Geschäft erkannt: {store_name} ({plz} {ort})"
+                f"Filiale erkannt: {store_name} ({plz} {ort})"
             )
 
             coordinates = self.geocode(
@@ -410,7 +410,7 @@ class EinkaufslisteGeofence(hass.Hass):
 
             for entity_id, store in self.stores.items():
 
-                # Individueller Radius pro Geschäft möglich.
+                # Individueller Radius pro Filiale möglich.
                 radius_key = (
                     "radius_" + entity_id.split(".")[-1]
                 )
