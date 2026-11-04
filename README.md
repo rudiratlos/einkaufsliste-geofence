@@ -7,9 +7,9 @@ Diese App für AppDaemon erstellt automatisch dynamische Sensoren für Geschäft
 Die App erkennt Geschäfte anhand der Attribute der Einkaufslisten-Sensoren, ermittelt die GPS-Koordinaten über OpenStreetMap Nominatim und stellt diese als dynamische Sensoren in Home Assistant bereit.
 
 Beispiele:
-- `sensor.denner_1234`
-- `sensor.coop_6900`
-- `sensor.migros_6900`
+- `sensor.einkaufsliste_zone_denner_1234`
+- `sensor.einkaufsliste_zone_coop_6900`
+- `sensor.einkaufsliste_zone_migros_6900`
 
 Die Sensoren dienen als geografische Referenzpunkte für die automatische Zuordnung von Geschäften durch andere Integrationen oder die Einkaufsliste-Card.
 
@@ -64,7 +64,7 @@ einkaufsliste_geofence:
 |---|---:|---|
 | `radius` | `35` | Standardradius in Metern |
 | `update_interval` | `60` | Aktualisierungsintervall in Sekunden |
-| `sensor_prefix` | `sensor.einkaufsliste_` | Präfix der Einkaufslisten-Sensoren |
+| `sensor_prefix` | `sensor.einkaufsliste_zone_` | Präfix der Einkaufslisten-Sensoren |
 | `radius_<geschaeft>_<plz>` | `radius` | Individueller Radius pro Geschäft |
 
 Beispiel mit individuellen Radien:
@@ -90,11 +90,11 @@ einkaufsliste_geofence:
 
 ## Dynamisch erzeugte Sensoren
 
-Für jedes erkannte Geschäft wird automatisch ein Sensor erstellt.
+Für jedes erkannte Geschäft wird automatisch ein Sensor im Fromat sensor.einkaufsliste_zone_<geschaeft>_<plz> erstellt.
 
 Beispiel:
 
-`sensor.denner_1234`
+`sensor.einkaufsliste_zone_denner_1234`
 
 Der Sensor enthält folgende Attribute:
 

@@ -4,7 +4,7 @@ Erkennt automatisch Einkaufslisten-Sensoren und erstellt pro Filiale
 einen Sensor mit GPS-Koordinaten und Geofence-Attributen.
 
 Beispiel:
-    sensor.coop_1234
+    sensor.einkaufsliste_zone_coop_6900
 
 Keine Binary-Sensoren.
 Keine Tracker-Überwachung.
@@ -31,7 +31,7 @@ class EinkaufslisteGeofence(hass.Hass):
         )
 
         self.output_prefix = self.args.get(
-            "output_prefix", "sensor."
+            "output_prefix", "sensor.einkaufsliste_zone_"
         )
 
         self.radius = float(self.args.get("radius", 35))
@@ -297,19 +297,21 @@ class EinkaufslisteGeofence(hass.Hass):
         if coordinates is None:
             return False
 
-        entity_id = f"sensor.{sensor_id}"
+        entity_id = f"{self.output_prefix}{sensor_id}"
+
+        radius = float(
+            self.args.get(
+                f"radius_{sensor_id}",
+                self.radius
+            )
+        )
 
         attributes = {
             "friendly_name": f"{store['name']} {store['plz']}",
             "icon": "mdi:cart-outline",
             "latitude": coordinates["latitude"],
             "longitude": coordinates["longitude"],
-            "radius": float(
-                self.args.get(
-                    f"radius_{sensor_id}",
-                    self.radius
-                )
-            ),
+            "radius": radius,
             "passive": False,
             "geschaeft": store["name"],
             "adresse": store["address"],

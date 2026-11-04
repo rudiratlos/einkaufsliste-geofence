@@ -7,9 +7,9 @@ This AppDaemon app automatically creates dynamic sensors for stores configured i
 The app discovers stores using shopping list sensor attributes, geocodes their addresses via OpenStreetMap Nominatim and exposes their GPS coordinates as dynamic Home Assistant sensors.
 
 Examples:
-- `sensor.denner_1234`
-- `sensor.coop_6900`
-- `sensor.migros_6900`
+- `sensor.einkaufsliste_zone_denner_1234`
+- `sensor.einkaufsliste_zone_coop_6900`
+- `sensor.einkaufsliste_zone_migros_6900`
 
 These sensors provide geographic reference points for automatic store matching by other integrations or the Shopping List Card.
 
@@ -64,7 +64,7 @@ einkaufsliste_geofence:
 |---|---:|---|
 | `radius` | `35` | Default geofence radius in meters |
 | `update_interval` | `60` | Update interval in seconds |
-| `sensor_prefix` | `sensor.einkaufsliste_` | Shopping list sensor prefix |
+| `sensor_prefix` | `sensor.einkaufsliste_zone_` | Shopping list sensor prefix |
 | `radius_<store>_<zip>` | `radius` | Individual radius per store |
 
 Example with individual radii:
@@ -99,11 +99,11 @@ Shopping list sensors must provide the following attributes:
 
 ## Dynamically generated sensors
 
-A sensor is automatically created for every detected store.
+A sensor is automatically created with the format sensor.einkaufsliste_zone_<geschaeft>_<plz> for every detected store.
 
 Example:
 
-`sensor.denner_1234`
+`sensor.einkaufsliste_zone_denner_1234`
 
 The sensor provides the following attributes:
 
