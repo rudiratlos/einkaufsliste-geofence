@@ -10,6 +10,11 @@ Beispiel:
 Keine Binary-Sensoren.
 Keine Tracker-Überwachung.
 Keine Änderungen an bestehenden Home-Assistant-Zonen.
+
+Logging:
+    INFO    nur bei Änderungen (neue/geänderte/entfernte Filiale)
+    DEBUG   jeder Durchlauf (Details pro Filiale)
+    WARNING Geocoding-Probleme (pro Adresse höchstens einmal je Wiederholungsintervall)
 """
 
 import json
@@ -21,6 +26,9 @@ import urllib.parse
 import urllib.request
 
 import appdaemon.plugins.hass.hassapi as hass
+
+# Fehlgeschlagene Geocoding-Versuche erst nach dieser Zeit wiederholen (Sekunden).
+FAILED_RETRY_SECONDS = 3600
 
 
 class EinkaufslisteGeofence(hass.Hass):
@@ -53,11 +61,24 @@ class EinkaufslisteGeofence(hass.Hass):
         self.geocode_cache = {}
         self.last_geocode = 0
 
+        # Zustand für sparsames Logging
+        self.failed_geocodes = {}      # cache_key -> Zeitpunkt des Fehlversuchs
+        self.known_store_ids = None    # None = erster Durchlauf
+        self.warned_collisions = set()
+
         self._load_cache()
+
+        # Cache-Datei sofort anlegen, damit Pfad-/Rechteprobleme
+        # direkt beim Start im Log sichtbar werden.
+        if not os.path.exists(self.cache_file):
+            self._save_cache()
 
         self.log(
             f"Einkaufsliste Geofence gestartet. "
-            f"Standardradius: {self.radius} m"
+            f"Standardradius: {self.radius} m, "
+            f"Intervall: {self.update_interval} s, "
+            f"Cache: {self.cache_file} "
+            f"({len(self.geocode_cache)} Einträge)"
         )
 
         self.run_every(
@@ -182,6 +203,15 @@ class EinkaufslisteGeofence(hass.Hass):
         if cache_key in self.geocode_cache:
             return self.geocode_cache[cache_key]
 
+        # Fehlgeschlagene Adressen nicht bei jedem Durchlauf neu abfragen.
+        failed_at = self.failed_geocodes.get(cache_key)
+
+        if (
+            failed_at is not None
+            and time.time() - failed_at < FAILED_RETRY_SECONDS
+        ):
+            return None
+
         wait = 1.1 - (
             time.time() - self.last_geocode
         )
@@ -225,9 +255,12 @@ class EinkaufslisteGeofence(hass.Hass):
 
             if not result:
 
+                self.failed_geocodes[cache_key] = time.time()
+
                 self.log(
                     f"Keine GPS-Koordinaten gefunden: "
-                    f"{full_address}",
+                    f"{full_address} "
+                    f"(neuer Versuch in {FAILED_RETRY_SECONDS // 60} min)",
                     level="WARNING"
                 )
 
@@ -239,6 +272,7 @@ class EinkaufslisteGeofence(hass.Hass):
             }
 
             self.geocode_cache[cache_key] = coordinates
+            self.failed_geocodes.pop(cache_key, None)
 
             self._save_cache()
 
@@ -252,8 +286,11 @@ class EinkaufslisteGeofence(hass.Hass):
 
         except Exception as exc:
 
+            self.failed_geocodes[cache_key] = time.time()
+
             self.log(
-                f"Geocoding-Fehler ({full_address}): {exc}",
+                f"Geocoding-Fehler ({full_address}): {exc} "
+                f"(neuer Versuch in {FAILED_RETRY_SECONDS // 60} min)",
                 level="WARNING"
             )
 
@@ -307,6 +344,28 @@ class EinkaufslisteGeofence(hass.Hass):
 
             sensor_id = f"{slug}_{zip_slug}"
 
+            # Kollision: zwei Quellsensoren ergeben dieselbe Sensor-ID.
+            if sensor_id in stores:
+
+                collision_key = (
+                    sensor_id,
+                    stores[sensor_id]["source_sensor"],
+                    entity_id
+                )
+
+                if collision_key not in self.warned_collisions:
+
+                    self.warned_collisions.add(collision_key)
+
+                    self.log(
+                        f"Doppelte Filiale {sensor_id}: "
+                        f"{stores[sensor_id]['source_sensor']} und "
+                        f"{entity_id}. Es wird nur der erste verwendet.",
+                        level="WARNING"
+                    )
+
+                continue
+
             stores[sensor_id] = {
                 "name": str(store_name).strip(),
                 "address": str(address).strip(),
@@ -321,6 +380,24 @@ class EinkaufslisteGeofence(hass.Hass):
     # ---------------------------------------------------------
     # Filial-Sensoren erstellen / aktualisieren
     # ---------------------------------------------------------
+
+    def _current_attributes(self, entity_id):
+        """Aktuelle Attribute des Sensors in HA, oder None."""
+
+        try:
+
+            current = self.get_state(
+                entity_id,
+                attribute="all"
+            )
+
+            if isinstance(current, dict):
+                return current.get("attributes") or {}
+
+        except Exception:
+            pass
+
+        return None
 
     def create_store_sensor(
         self,
@@ -366,6 +443,25 @@ class EinkaufslisteGeofence(hass.Hass):
             "source_sensor": store["source_sensor"]
         }
 
+        # Nur schreiben, wenn der Sensor fehlt oder sich etwas geändert hat.
+        # Der Vergleich erfolgt mit dem echten HA-Zustand, damit der Sensor
+        # nach einem HA-Neustart automatisch wieder angelegt wird.
+        current = self._current_attributes(entity_id)
+
+        if current is not None and all(
+            current.get(key) == value
+            for key, value in attributes.items()
+        ):
+
+            self.log(
+                f"Filial-Sensor unverändert: {entity_id}",
+                level="DEBUG"
+            )
+
+            return True
+
+        is_new = current is None
+
         try:
 
             self.set_state(
@@ -375,9 +471,11 @@ class EinkaufslisteGeofence(hass.Hass):
             )
 
             self.log(
-                f"Filial-Sensor aktualisiert: {entity_id} "
+                f"Filial-Sensor {'erstellt' if is_new else 'geändert'}: "
+                f"{entity_id} "
                 f"({coordinates['latitude']}, "
-                f"{coordinates['longitude']}) "
+                f"{coordinates['longitude']}, "
+                f"Radius {radius:g} m) "
                 f"Quelle: {store['source_sensor']}"
             )
 
@@ -403,9 +501,41 @@ class EinkaufslisteGeofence(hass.Hass):
 
             stores = self.discover_stores()
 
-            self.log(
-                f"{len(stores)} Filiale(n) erkannt."
-            )
+            current_ids = set(stores)
+
+            # Änderungen an der Filialliste melden (INFO),
+            # sonst nur DEBUG.
+            if self.known_store_ids is None:
+
+                self.log(
+                    f"{len(stores)} Filiale(n) erkannt: "
+                    f"{', '.join(sorted(current_ids)) or '-'}"
+                )
+
+            elif current_ids != self.known_store_ids:
+
+                added = sorted(current_ids - self.known_store_ids)
+                removed = sorted(self.known_store_ids - current_ids)
+
+                if added:
+                    self.log(
+                        f"Neue Filiale(n): {', '.join(added)}"
+                    )
+
+                if removed:
+                    self.log(
+                        f"Filiale(n) nicht mehr vorhanden: "
+                        f"{', '.join(removed)}"
+                    )
+
+            else:
+
+                self.log(
+                    f"{len(stores)} Filiale(n) erkannt.",
+                    level="DEBUG"
+                )
+
+            self.known_store_ids = current_ids
 
             for sensor_id, store in sorted(
                 stores.items()
@@ -414,7 +544,8 @@ class EinkaufslisteGeofence(hass.Hass):
                 self.log(
                     f"Filiale erkannt: {store['name']} "
                     f"({store['plz']} {store['ort']}) "
-                    f"Quelle: {store['source_sensor']}"
+                    f"Quelle: {store['source_sensor']}",
+                    level="DEBUG"
                 )
 
                 self.create_store_sensor(

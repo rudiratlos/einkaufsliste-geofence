@@ -135,9 +135,11 @@ Eine zusätzliche `zone:`-Konfiguration in der `configuration.yaml` ist nicht er
 
 Für die Ermittlung der GPS-Koordinaten wird OpenStreetMap Nominatim verwendet.
 
-Erfolgreich ermittelte Koordinaten werden lokal gespeichert:
+Erfolgreich ermittelte Koordinaten werden lokal im AppDaemon-Container gespeichert:
 
 `/config/appdaemon/apps/einkaufsliste_geofence/geocode_cache.json`
+
+Bei Verwendung des Home-Assistant-Add-ons ist das von aussen sichtbar unter /addon_configs/<add-on-id>_appdaemon/appdaemon/apps/einkaufsliste_geofence/geocode_cache.json. Die Datei wird erst nach dem ersten erfolgreichen Geocoding angelegt.
 
 Bereits geocodierte Adressen werden aus dem Cache geladen, um unnötige Anfragen zu vermeiden.
 
