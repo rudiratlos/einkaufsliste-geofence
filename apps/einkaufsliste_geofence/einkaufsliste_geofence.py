@@ -168,20 +168,7 @@ class EinkaufslisteGeofence(hass.Hass):
 
         """Ermittelt GPS-Koordinaten über OpenStreetMap Nominatim."""
 
-        # Vollständige Adresse zusammensetzen:
-        # Via Indipendenza 10, 6826 Riva S. Vitale, CH
-
-        plz_ort = " ".join(
-            str(part).strip()
-            for part in (plz, ort)
-            if part
-        )
-
-        full_address = ", ".join(
-            str(part).strip()
-            for part in (address, plz_ort, land)
-            if part
-        )
+        full_address = f"{str(address).strip()}, {str(land).strip()}"
 
         cache_key = full_address.lower()
 
