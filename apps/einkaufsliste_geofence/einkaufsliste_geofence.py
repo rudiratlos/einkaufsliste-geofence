@@ -1,7 +1,8 @@
 """Einkaufsliste Geofence – dynamische Filial-Sensoren.
 
-Erkennt automatisch Einkaufslisten-Sensoren und erstellt pro Filiale
-einen Sensor mit GPS-Koordinaten und Geofence-Attributen.
+Erkennt automatisch originale Einkaufslisten-Sensoren und erstellt
+pro Filiale einen dynamischen Sensor mit GPS-Koordinaten und
+Geofence-Attributen.
 
 Beispiel:
     sensor.einkaufsliste_zone_coop_6900
@@ -27,14 +28,18 @@ class EinkaufslisteGeofence(hass.Hass):
     def initialize(self):
 
         self.sensor_prefix = self.args.get(
-            "sensor_prefix", "sensor.einkaufsliste_"
+            "sensor_prefix",
+            "sensor.einkaufsliste_"
         )
 
         self.output_prefix = self.args.get(
-            "output_prefix", "sensor.einkaufsliste_zone_"
+            "output_prefix",
+            "sensor.einkaufsliste_zone_"
         )
 
-        self.radius = float(self.args.get("radius", 35))
+        self.radius = float(
+            self.args.get("radius", 35)
+        )
 
         self.update_interval = int(
             self.args.get("update_interval", 60)
@@ -71,14 +76,21 @@ class EinkaufslisteGeofence(hass.Hass):
         value = str(value or "").strip().lower()
         value = value.replace("ß", "ss")
 
-        value = unicodedata.normalize("NFKD", value)
+        value = unicodedata.normalize(
+            "NFKD",
+            value
+        )
 
         value = "".join(
             char for char in value
             if not unicodedata.combining(char)
         )
 
-        value = re.sub(r"[^a-z0-9]+", "_", value)
+        value = re.sub(
+            r"[^a-z0-9]+",
+            "_",
+            value
+        )
 
         return value.strip("_")
 
@@ -111,9 +123,14 @@ class EinkaufslisteGeofence(hass.Hass):
 
         try:
 
-            directory = os.path.dirname(self.cache_file)
+            directory = os.path.dirname(
+                self.cache_file
+            )
 
-            os.makedirs(directory, exist_ok=True)
+            os.makedirs(
+                directory,
+                exist_ok=True
+            )
 
             temporary = self.cache_file + ".tmp"
 
@@ -130,7 +147,10 @@ class EinkaufslisteGeofence(hass.Hass):
                     indent=2
                 )
 
-            os.replace(temporary, self.cache_file)
+            os.replace(
+                temporary,
+                self.cache_file
+            )
 
         except Exception as exc:
 
@@ -143,7 +163,13 @@ class EinkaufslisteGeofence(hass.Hass):
     # Geocoding
     # ---------------------------------------------------------
 
-    def geocode(self, address, plz="", ort="", land="CH"):
+    def geocode(
+        self,
+        address,
+        plz="",
+        ort="",
+        land="CH"
+    ):
 
         full_address = ", ".join(
             str(part).strip()
@@ -156,7 +182,9 @@ class EinkaufslisteGeofence(hass.Hass):
         if cache_key in self.geocode_cache:
             return self.geocode_cache[cache_key]
 
-        wait = 1.1 - (time.time() - self.last_geocode)
+        wait = 1.1 - (
+            time.time() - self.last_geocode
+        )
 
         if wait > 0:
             time.sleep(wait)
@@ -198,7 +226,8 @@ class EinkaufslisteGeofence(hass.Hass):
             if not result:
 
                 self.log(
-                    f"Keine GPS-Koordinaten gefunden: {full_address}",
+                    f"Keine GPS-Koordinaten gefunden: "
+                    f"{full_address}",
                     level="WARNING"
                 )
 
@@ -242,13 +271,21 @@ class EinkaufslisteGeofence(hass.Hass):
 
         for entity_id, entity in states.items():
 
+            # Nur originale Einkaufslisten-Sensoren erkennen.
             if not entity_id.startswith(self.sensor_prefix):
+                continue
+
+            # Selbst erzeugte Filial-Sensoren ausschliessen.
+            if entity_id.startswith(self.output_prefix):
                 continue
 
             if not isinstance(entity, dict):
                 continue
 
-            attributes = entity.get("attributes", {})
+            attributes = entity.get(
+                "attributes",
+                {}
+            )
 
             if not isinstance(attributes, dict):
                 continue
@@ -285,7 +322,11 @@ class EinkaufslisteGeofence(hass.Hass):
     # Filial-Sensoren erstellen / aktualisieren
     # ---------------------------------------------------------
 
-    def create_store_sensor(self, sensor_id, store):
+    def create_store_sensor(
+        self,
+        sensor_id,
+        store
+    ):
 
         coordinates = self.geocode(
             store["address"],
@@ -297,7 +338,9 @@ class EinkaufslisteGeofence(hass.Hass):
         if coordinates is None:
             return False
 
-        entity_id = f"{self.output_prefix}{sensor_id}"
+        entity_id = (
+            f"{self.output_prefix}{sensor_id}"
+        )
 
         radius = float(
             self.args.get(
@@ -307,7 +350,9 @@ class EinkaufslisteGeofence(hass.Hass):
         )
 
         attributes = {
-            "friendly_name": f"{store['name']} {store['plz']}",
+            "friendly_name": (
+                f"{store['name']} {store['plz']}"
+            ),
             "icon": "mdi:cart-outline",
             "latitude": coordinates["latitude"],
             "longitude": coordinates["longitude"],
@@ -332,7 +377,8 @@ class EinkaufslisteGeofence(hass.Hass):
             self.log(
                 f"Filial-Sensor aktualisiert: {entity_id} "
                 f"({coordinates['latitude']}, "
-                f"{coordinates['longitude']})"
+                f"{coordinates['longitude']}) "
+                f"Quelle: {store['source_sensor']}"
             )
 
             return True
@@ -340,7 +386,8 @@ class EinkaufslisteGeofence(hass.Hass):
         except Exception as exc:
 
             self.log(
-                f"Fehler beim Erstellen von {entity_id}: {exc}",
+                f"Fehler beim Erstellen von "
+                f"{entity_id}: {exc}",
                 level="ERROR"
             )
 
@@ -360,11 +407,14 @@ class EinkaufslisteGeofence(hass.Hass):
                 f"{len(stores)} Filiale(n) erkannt."
             )
 
-            for sensor_id, store in sorted(stores.items()):
+            for sensor_id, store in sorted(
+                stores.items()
+            ):
 
                 self.log(
                     f"Filiale erkannt: {store['name']} "
-                    f"({store['plz']} {store['ort']})"
+                    f"({store['plz']} {store['ort']}) "
+                    f"Quelle: {store['source_sensor']}"
                 )
 
                 self.create_store_sensor(
@@ -375,7 +425,8 @@ class EinkaufslisteGeofence(hass.Hass):
         except Exception as exc:
 
             self.log(
-                f"Fehler bei der Filial-Aktualisierung: {exc}",
+                f"Fehler bei der Filial-Aktualisierung: "
+                f"{exc}",
                 level="ERROR"
             )
 
