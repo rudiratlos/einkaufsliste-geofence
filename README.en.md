@@ -29,7 +29,6 @@ The Geofencing-App config entry in `apps.yaml`:
       # Optional: individuell radius per shop
       # radius_<store>_<zip>: 50
 
-**options:**
 
 The app detects stores using the attributes of the shopping list sensors. Store addresses are geocoded to determine their locations.
 
