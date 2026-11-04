@@ -1,0 +1,1 @@
+from .einkaufsliste_geofence import EinkaufslisteGeofence
