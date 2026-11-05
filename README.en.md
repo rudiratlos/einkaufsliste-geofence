@@ -2,6 +2,8 @@
 
 [🇩🇪 Deutsch](README.md) · [🇬🇧 English](README.en.md)
 
+**!! do not use it for einkaufsliste, it's already in included since Version v2.76.26 !!**
+
 This AppDaemon app automatically creates dynamic sensors for stores configured in your Home Assistant shopping list.
 
 The app discovers stores using shopping list sensor attributes, geocodes their addresses via OpenStreetMap Nominatim and exposes their GPS coordinates as dynamic Home Assistant sensors.

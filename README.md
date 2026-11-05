@@ -2,6 +2,8 @@
 
 [🇩🇪 Deutsch](README.md) · [🇬🇧 English](README.en.md)
 
+**!! nicht verwenden für einkaufsliste, ist bereits nativ in Version v2.76.26 enthalten !!**
+
 Diese App für AppDaemon erstellt automatisch dynamische Sensoren für Geschäfte, die in der Home-Assistant-Einkaufsliste hinterlegt sind.
 
 Die App erkennt Geschäfte anhand der Attribute der Einkaufslisten-Sensoren, ermittelt die GPS-Koordinaten über OpenStreetMap Nominatim und stellt diese als dynamische Sensoren in Home Assistant bereit.
@@ -139,7 +141,7 @@ Erfolgreich ermittelte Koordinaten werden lokal im AppDaemon-Container gespeiche
 
 `/config/appdaemon/apps/einkaufsliste_geofence/geocode_cache.json`
 
-Bei Verwendung des Home-Assistant-Add-ons ist das von aussen sichtbar unter /addon_configs/<add-on-id>_appdaemon/appdaemon/apps/einkaufsliste_geofence/geocode_cache.json. Die Datei wird erst nach dem ersten erfolgreichen Geocoding angelegt.
+Bei Verwendung des Home-Assistant-Add-ons ist das von aussen sichtbar unter /addon_configs/[add-on-id]_appdaemon/appdaemon/apps/einkaufsliste_geofence/geocode_cache.json. Die Datei wird erst nach dem ersten erfolgreichen Geocoding angelegt.
 
 Bereits geocodierte Adressen werden aus dem Cache geladen, um unnötige Anfragen zu vermeiden.
 
